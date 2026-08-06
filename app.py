@@ -41,6 +41,7 @@ from providers import (
     pagasa_bulletins,
     pagasa_pmt,
     philsensors,
+    prffwc_water_levels,
 )
 
 st.set_page_config(
@@ -49,7 +50,7 @@ st.set_page_config(
     layout="wide",
 )
 
-BUILD = "5.4.0"
+BUILD = "5.5.0"
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data"
 CACHE_DIR = ROOT / ".cache"
@@ -101,6 +102,12 @@ def cached_bulacan(bucket: int) -> ProviderResult:
 
 
 @st.cache_data(show_spinner=False, max_entries=4)
+def cached_prffwc(bucket: int, timeout_ms: int) -> ProviderResult:
+    del bucket
+    return prffwc_water_levels.fetch(CACHE_DIR, timeout_ms=timeout_ms)
+
+
+@st.cache_data(show_spinner=False, max_entries=4)
 def cached_llda(bucket: int, timeout_ms: int) -> ProviderResult:
     del bucket
     return llda_water_level.fetch(CACHE_DIR, timeout_ms=timeout_ms)
@@ -137,7 +144,7 @@ def source_health_frame(results: list[ProviderResult]) -> pd.DataFrame:
 st.title("🌊 Philippine Multi-Source River Monitoring Dashboard")
 st.caption(
     "Independent providers for PhilSensors, PAGASA NCR–Rizal/PMT gauges, LLDA Laguna de Bay, "
-    "Bulacan/Pampanga stations, PAGASA basin forecasts for Abra, Panay, Cagayan de Oro and Davao, "
+    "PRFFWC Pampanga numerical stations, Bulacan/MMORS stations, PAGASA basin forecasts for Abra, Panay, Cagayan de Oro and Davao, "
     "Samar regional advisories, and optional official LGU report imports."
 )
 
@@ -152,7 +159,8 @@ with st.sidebar:
     st.subheader("Water providers")
     use_philsensors = st.checkbox("DOST-ASTI PhilSensors", value=True)
     use_pmt = st.checkbox("PAGASA NCR–Rizal live gauges", value=True)
-    use_bulacan = st.checkbox("Bulacan PDRRMO river stations", value=True)
+    use_bulacan = st.checkbox("Bulacan PDRRMO / MMORS river stations", value=True)
+    use_prffwc = st.checkbox("PRFFWC Pampanga numerical infographic", value=True)
     use_llda = st.checkbox("LLDA Laguna de Bay water level", value=True)
     use_bulletins = st.checkbox("PAGASA basin forecasts and regional advisories", value=True)
 
@@ -207,6 +215,7 @@ with st.sidebar:
         cached_philsensors.clear()
         cached_pmt.clear()
         cached_bulacan.clear()
+        cached_prffwc.clear()
         cached_llda.clear()
         cached_bulletins.clear()
         cached_province_reference.clear()
@@ -239,8 +248,11 @@ if use_pmt:
     with st.spinner("Loading PAGASA NCR–Rizal water-level table..."):
         providers.append(cached_pmt(bucket, int(browser_timeout * 1000)))
 if use_bulacan:
-    with st.spinner("Loading Bulacan PDRRMO river stations..."):
+    with st.spinner("Loading Bulacan PDRRMO / MMORS river stations..."):
         providers.append(cached_bulacan(bucket))
+if use_prffwc:
+    with st.spinner("Loading PRFFWC Pampanga numerical water levels..."):
+        providers.append(cached_prffwc(bucket, int(browser_timeout * 1000)))
 if use_llda:
     with st.spinner("Loading the official LLDA Laguna de Bay level..."):
         providers.append(cached_llda(bucket, int(browser_timeout * 1000)))
@@ -323,7 +335,7 @@ if show_target_river_map:
         target_map,
         height=650,
         use_container_width=True,
-        key="requested_river_watch_map_v54",
+        key="requested_river_watch_map_v55",
     )
     target_count = int(tagged_target_stations["target_key"].ne("").sum()) if not tagged_target_stations.empty else 0
     exact_count = int(
@@ -409,7 +421,7 @@ if show_province_trend_map:
 st.markdown("---")
 st.subheader("Combined rainfall and water-level map")
 monitor_map = build_monitoring_map(geojson, hazard_df, station_df, view=map_view)
-st_folium(monitor_map, height=720, use_container_width=True, key="clean_v54_monitor_map")
+st_folium(monitor_map, height=720, use_container_width=True, key="clean_v55_monitor_map")
 
 station_tab, history_tab, bulletin_tab, basin_tab = st.tabs(
     ["Latest water readings", "Reading history", "Basin bulletins", "Basin screening"]
