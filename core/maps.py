@@ -88,6 +88,7 @@ def _station_popup(row: pd.Series) -> str:
         f"Observed: {format_time(row.get('timestamp'))}<br>"
         f"Source: {html.escape(str(row.get('source_name', '-')))} · {source_line}<br>"
         f"Data type: {html.escape(str(row.get('data_kind', '-')))}<br>"
+        f"Coordinate basis: {html.escape(str(row.get('coordinate_basis', '-') or '-'))}<br>"
         f"Notes: {html.escape(str(row.get('notes', '') or ''))}"
         f"</div>"
     )
@@ -126,9 +127,13 @@ def build_monitoring_map(geojson: dict, hazard_df: pd.DataFrame, stations: pd.Da
     ).add_to(map_object)
 
     if stations is not None and not stations.empty:
-        marker_layer = folium.FeatureGroup(name="Verified-coordinate water stations", show=True)
         mapped = stations.dropna(subset=["lat", "lon"]).copy()
-        for _, row in mapped.iterrows():
+        manual_mask = mapped.get("data_kind", pd.Series("", index=mapped.index)).fillna("").astype(str).str.startswith("manual_work")
+        exact = mapped[~manual_mask].copy()
+        manual = mapped[manual_mask].copy()
+
+        marker_layer = folium.FeatureGroup(name="Verified-coordinate water stations", show=True)
+        for _, row in exact.iterrows():
             status = str(row.get("water_status", "No Data"))
             radius = 8 if bool(row.get("rapid_rise", False) or row.get("rapid_fall", False)) else 6
             folium.CircleMarker(
@@ -143,5 +148,21 @@ def build_monitoring_map(geojson: dict, hazard_df: pd.DataFrame, stations: pd.Da
                 tooltip=f"{row.get('station_name')}: {float(row.get('level_m')):.2f} m ({status})",
             ).add_to(marker_layer)
         marker_layer.add_to(map_object)
+
+        manual_layer = folium.FeatureGroup(name="Manual official reports (representative anchors)", show=True)
+        for _, row in manual.iterrows():
+            status = str(row.get("water_status", "No Data"))
+            folium.CircleMarker(
+                location=[float(row["lat"]), float(row["lon"])],
+                radius=7,
+                color="#111827",
+                weight=2,
+                fill=True,
+                fill_color=WATER_COLORS.get(status, "#7c3aed"),
+                fill_opacity=0.95,
+                popup=folium.Popup(_station_popup(row), max_width=470),
+                tooltip=f"Manual report · {row.get('station_name')}: {float(row.get('level_m')):.2f} m",
+            ).add_to(manual_layer)
+        manual_layer.add_to(map_object)
     folium.LayerControl(collapsed=False).add_to(map_object)
     return map_object
