@@ -1,0 +1,6 @@
+source_name,station_id,station_name_pattern,river_system,basin_name,region,province,municipality,lat,lon,notes
+PAGASA Pasig-Marikina-Tullahan FFWS,,Sto. Nino,Marikina River,Pasig-Laguna,NCR,Metro Manila,Marikina,,,Add verified station coordinates only after checking the official station map.
+PAGASA Pasig-Marikina-Tullahan FFWS,,Nangka,Marikina River,Pasig-Laguna,NCR,Metro Manila,Marikina,,,Add verified station coordinates only after checking the official station map.
+PAGASA Pasig-Marikina-Tullahan FFWS,,Quirino,Tullahan River,Pasig-Laguna,NCR,Metro Manila,Quezon City,,,Add verified station coordinates only after checking the official station map.
+Bulacan PDRRMO River Status,,Sulipan Bridge,Pampanga River,Pampanga,Region III,Pampanga,Apalit,,,Add verified station coordinates only after checking the official station page.
+Bulacan PDRRMO River Status,,Northville Bridge,Meycauayan-Marilao-Obando River System,Pasig-Laguna,Region III,Bulacan,Marilao,,,Add verified station coordinates only after checking the official station page.

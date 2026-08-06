@@ -1,0 +1,2 @@
+source_name,source_url,province,municipality,river_system,basin_name,station_name,timestamp,level,unit,status,alert_m,alarm_m,critical_m,lat,lon,notes
+MDRRMO Example,https://www.facebook.com/example,Example Province,Example Municipality,Example River,Example Basin,Bridge monitoring point,2026-08-06 09:00,2.50,m,Alert,,,,,,Exact wording from official report

@@ -1,0 +1,707 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Cagayan",
+        "lat": 17.7,
+        "lon": 121.8,
+        "threshold24_mm": 80,
+        "threshold72_mm": 180,
+        "region": "Luzon",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              121.0,
+              17.099999999999998
+            ],
+            [
+              122.6,
+              17.099999999999998
+            ],
+            [
+              122.6,
+              18.3
+            ],
+            [
+              121.0,
+              18.3
+            ],
+            [
+              121.0,
+              17.099999999999998
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Abra",
+        "lat": 17.4,
+        "lon": 120.7,
+        "threshold24_mm": 70,
+        "threshold72_mm": 160,
+        "region": "Luzon",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              120.2,
+              16.95
+            ],
+            [
+              121.2,
+              16.95
+            ],
+            [
+              121.2,
+              17.849999999999998
+            ],
+            [
+              120.2,
+              17.849999999999998
+            ],
+            [
+              120.2,
+              16.95
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Abulug",
+        "lat": 18.4,
+        "lon": 121.5,
+        "threshold24_mm": 70,
+        "threshold72_mm": 150,
+        "region": "Luzon",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              121.05,
+              18.049999999999997
+            ],
+            [
+              121.95,
+              18.049999999999997
+            ],
+            [
+              121.95,
+              18.75
+            ],
+            [
+              121.05,
+              18.75
+            ],
+            [
+              121.05,
+              18.049999999999997
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Agno",
+        "lat": 16.2,
+        "lon": 120.5,
+        "threshold24_mm": 85,
+        "threshold72_mm": 190,
+        "region": "Luzon",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              119.95,
+              15.75
+            ],
+            [
+              121.05,
+              15.75
+            ],
+            [
+              121.05,
+              16.65
+            ],
+            [
+              119.95,
+              16.65
+            ],
+            [
+              119.95,
+              15.75
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Pampanga",
+        "lat": 15.2,
+        "lon": 120.8,
+        "threshold24_mm": 75,
+        "threshold72_mm": 175,
+        "region": "Luzon",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              120.14999999999999,
+              14.7
+            ],
+            [
+              121.45,
+              14.7
+            ],
+            [
+              121.45,
+              15.7
+            ],
+            [
+              120.14999999999999,
+              15.7
+            ],
+            [
+              120.14999999999999,
+              14.7
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Pasig-Laguna",
+        "lat": 14.4,
+        "lon": 121.25,
+        "threshold24_mm": 70,
+        "threshold72_mm": 150,
+        "region": "Luzon",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              120.8,
+              14.05
+            ],
+            [
+              121.7,
+              14.05
+            ],
+            [
+              121.7,
+              14.75
+            ],
+            [
+              120.8,
+              14.75
+            ],
+            [
+              120.8,
+              14.05
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Bicol",
+        "lat": 13.3,
+        "lon": 123.6,
+        "threshold24_mm": 90,
+        "threshold72_mm": 200,
+        "region": "Luzon",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              122.89999999999999,
+              12.8
+            ],
+            [
+              124.3,
+              12.8
+            ],
+            [
+              124.3,
+              13.8
+            ],
+            [
+              122.89999999999999,
+              13.8
+            ],
+            [
+              122.89999999999999,
+              12.8
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Jalaur",
+        "lat": 10.9,
+        "lon": 122.55,
+        "threshold24_mm": 75,
+        "threshold72_mm": 170,
+        "region": "Visayas",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              122.2,
+              10.6
+            ],
+            [
+              122.89999999999999,
+              10.6
+            ],
+            [
+              122.89999999999999,
+              11.200000000000001
+            ],
+            [
+              122.2,
+              11.200000000000001
+            ],
+            [
+              122.2,
+              10.6
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Panay",
+        "lat": 11.3,
+        "lon": 122.1,
+        "threshold24_mm": 75,
+        "threshold72_mm": 170,
+        "region": "Visayas",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              121.64999999999999,
+              10.950000000000001
+            ],
+            [
+              122.55,
+              10.950000000000001
+            ],
+            [
+              122.55,
+              11.65
+            ],
+            [
+              121.64999999999999,
+              11.65
+            ],
+            [
+              121.64999999999999,
+              10.950000000000001
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Ilog-Hilabangan",
+        "lat": 9.85,
+        "lon": 122.8,
+        "threshold24_mm": 85,
+        "threshold72_mm": 190,
+        "region": "Visayas",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              122.35,
+              9.5
+            ],
+            [
+              123.25,
+              9.5
+            ],
+            [
+              123.25,
+              10.2
+            ],
+            [
+              122.35,
+              10.2
+            ],
+            [
+              122.35,
+              9.5
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Agus",
+        "lat": 8.05,
+        "lon": 124.25,
+        "threshold24_mm": 75,
+        "threshold72_mm": 170,
+        "region": "Mindanao",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              123.8,
+              7.700000000000001
+            ],
+            [
+              124.7,
+              7.700000000000001
+            ],
+            [
+              124.7,
+              8.4
+            ],
+            [
+              123.8,
+              8.4
+            ],
+            [
+              123.8,
+              7.700000000000001
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Agusan",
+        "lat": 8.95,
+        "lon": 125.9,
+        "threshold24_mm": 95,
+        "threshold72_mm": 210,
+        "region": "Mindanao",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              125.15,
+              8.399999999999999
+            ],
+            [
+              126.65,
+              8.399999999999999
+            ],
+            [
+              126.65,
+              9.5
+            ],
+            [
+              125.15,
+              9.5
+            ],
+            [
+              125.15,
+              8.399999999999999
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Mindanao",
+        "lat": 7.0,
+        "lon": 124.8,
+        "threshold24_mm": 95,
+        "threshold72_mm": 220,
+        "region": "Mindanao",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              124.0,
+              6.45
+            ],
+            [
+              125.6,
+              6.45
+            ],
+            [
+              125.6,
+              7.55
+            ],
+            [
+              124.0,
+              7.55
+            ],
+            [
+              124.0,
+              6.45
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Buayan-Malungon",
+        "lat": 6.3,
+        "lon": 125.1,
+        "threshold24_mm": 85,
+        "threshold72_mm": 190,
+        "region": "Mindanao",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              124.64999999999999,
+              5.95
+            ],
+            [
+              125.55,
+              5.95
+            ],
+            [
+              125.55,
+              6.6499999999999995
+            ],
+            [
+              124.64999999999999,
+              6.6499999999999995
+            ],
+            [
+              124.64999999999999,
+              5.95
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Davao",
+        "lat": 7.15,
+        "lon": 125.55,
+        "threshold24_mm": 80,
+        "threshold72_mm": 180,
+        "region": "Mindanao",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              125.14999999999999,
+              6.8500000000000005
+            ],
+            [
+              125.95,
+              6.8500000000000005
+            ],
+            [
+              125.95,
+              7.45
+            ],
+            [
+              125.14999999999999,
+              7.45
+            ],
+            [
+              125.14999999999999,
+              6.8500000000000005
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Tagum-Libuganon",
+        "lat": 7.65,
+        "lon": 125.95,
+        "threshold24_mm": 85,
+        "threshold72_mm": 190,
+        "region": "Mindanao",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              125.5,
+              7.300000000000001
+            ],
+            [
+              126.4,
+              7.300000000000001
+            ],
+            [
+              126.4,
+              8.0
+            ],
+            [
+              125.5,
+              8.0
+            ],
+            [
+              125.5,
+              7.300000000000001
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Cagayan de Oro",
+        "lat": 8.45,
+        "lon": 124.6,
+        "threshold24_mm": 80,
+        "threshold72_mm": 180,
+        "region": "Mindanao",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              124.25,
+              8.149999999999999
+            ],
+            [
+              124.94999999999999,
+              8.149999999999999
+            ],
+            [
+              124.94999999999999,
+              8.75
+            ],
+            [
+              124.25,
+              8.75
+            ],
+            [
+              124.25,
+              8.149999999999999
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "basin_name": "Tagoloan",
+        "lat": 8.55,
+        "lon": 124.95,
+        "threshold24_mm": 80,
+        "threshold72_mm": 180,
+        "region": "Mindanao",
+        "notes": "Simplified placeholder polygon. Replace with official basin shapefile for production."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              124.60000000000001,
+              8.25
+            ],
+            [
+              125.3,
+              8.25
+            ],
+            [
+              125.3,
+              8.850000000000001
+            ],
+            [
+              124.60000000000001,
+              8.850000000000001
+            ],
+            [
+              124.60000000000001,
+              8.25
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
