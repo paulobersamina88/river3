@@ -50,7 +50,7 @@ st.set_page_config(
     layout="wide",
 )
 
-BUILD = "5.5.0"
+BUILD = "5.6.0"
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data"
 CACHE_DIR = ROOT / ".cache"
@@ -58,6 +58,9 @@ GEOJSON_PATH = DATA_DIR / "major_river_basins_simplified.geojson"
 SAMPLE_RAIN_PATH = DATA_DIR / "sample_basin_rainfall.csv"
 PHILSENSORS_REGISTRY_PATH = DATA_DIR / "philsensors_station_registry.csv"
 OFFICIAL_REPORT_TEMPLATE = DATA_DIR / "official_report_template.csv"
+CHATGPT_WORK_TEMPLATE = DATA_DIR / "chatgpt_work_report_template.tsv"
+CHATGPT_WORK_SAMPLE = DATA_DIR / "chatgpt_work_sample.tsv"
+MANUAL_REPORT_REGISTRY_PATH = DATA_DIR / "manual_report_location_registry.csv"
 SUPPLEMENTARY_REGISTRY_PATH = DATA_DIR / "supplementary_station_registry.csv"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -176,10 +179,15 @@ with st.sidebar:
         type=["csv"],
         help="Adds verified coordinates or corrected river/basin metadata for PAGASA PMT and Bulacan stations.",
     )
-    official_upload = st.file_uploader(
-        "Optional official LGU report CSV",
+    manual_report_upload = st.file_uploader(
+        "ChatGPT Work/manual report file",
+        type=["csv", "tsv", "txt"],
+        help="Upload the compact CSV/TSV result produced by a supervised ChatGPT Work Facebook search.",
+    )
+    manual_registry_upload = st.file_uploader(
+        "Optional manual-report location registry",
         type=["csv"],
-        help="Use this for targeted public DRRMO reports collected during an alerted event.",
+        help="Adds map coordinates for reports that do not include latitude and longitude. Registry coordinates must be labelled exact or representative.",
     )
 
     stale_minutes = st.number_input("Stale after (minutes)", 30, 2880, 240, 30)
@@ -221,6 +229,85 @@ with st.sidebar:
         cached_province_reference.clear()
         st.rerun()
 
+manual_report_text = ""
+manual_result: ProviderResult | None = None
+manual_report_df = pd.DataFrame()
+manual_registry = (
+    pd.read_csv(manual_registry_upload)
+    if manual_registry_upload is not None
+    else load_registry(MANUAL_REPORT_REGISTRY_PATH)
+)
+
+with st.expander("📋 Import ChatGPT Work / manually extracted official river reports", expanded=False):
+    st.caption(
+        "Paste the tab-separated result from ChatGPT Work or upload a CSV/TSV file. "
+        "Rows with a numerical level become manual official-report markers; rows without a level remain qualitative reports."
+    )
+    manual_report_text = st.text_area(
+        "Paste ChatGPT Work result",
+        value="",
+        height=220,
+        placeholder=(
+            "requested_source\treporting_source\triver_or_site\tlevel\tunit\tstatus\tobserved_at\tsource_url\tnotes"
+        ),
+        help="Keep the header row. Tabs, commas, semicolons, and pipes are detected automatically.",
+    )
+    download_a, download_b, download_c = st.columns(3)
+    with download_a:
+        if CHATGPT_WORK_TEMPLATE.exists():
+            st.download_button(
+                "Download Work TSV template",
+                data=CHATGPT_WORK_TEMPLATE.read_bytes(),
+                file_name="chatgpt_work_report_template.tsv",
+                mime="text/tab-separated-values",
+            )
+    with download_b:
+        if CHATGPT_WORK_SAMPLE.exists():
+            st.download_button(
+                "Download sample result",
+                data=CHATGPT_WORK_SAMPLE.read_bytes(),
+                file_name="chatgpt_work_sample.tsv",
+                mime="text/tab-separated-values",
+            )
+    with download_c:
+        if MANUAL_REPORT_REGISTRY_PATH.exists():
+            st.download_button(
+                "Download location registry",
+                data=MANUAL_REPORT_REGISTRY_PATH.read_bytes(),
+                file_name="manual_report_location_registry.csv",
+                mime="text/csv",
+            )
+
+    manual_input_text = ""
+    if manual_report_upload is not None:
+        manual_input_text = manual_report_upload.getvalue().decode("utf-8-sig", errors="replace")
+    if manual_report_text.strip():
+        manual_input_text = manual_report_text
+    if manual_input_text.strip():
+        manual_result = official_reports_csv.from_text(manual_input_text, registry=manual_registry)
+        manual_report_df = manual_result.details.get("reports", pd.DataFrame())
+        if manual_result.error:
+            st.error(manual_result.error)
+        else:
+            st.success(manual_result.message)
+            preview = manual_report_df.copy()
+            if "level_m" in preview:
+                preview["level_m"] = pd.to_numeric(preview["level_m"], errors="coerce").round(3)
+            if "observed_at" in preview:
+                preview["observed_at"] = preview["observed_at"].apply(format_time)
+            st.dataframe(preview, use_container_width=True, hide_index=True)
+            unmapped_manual = int(
+                (~manual_report_df[["lat", "lon"]].notna().all(axis=1)).sum()
+            ) if not manual_report_df.empty else 0
+            if unmapped_manual:
+                st.warning(
+                    f"{unmapped_manual} manual report(s) have no map coordinate. Add latitude/longitude "
+                    "to the input or extend the manual-report location registry."
+                )
+            warnings = manual_result.details.get("warnings", [])
+            if warnings:
+                st.write(warnings)
+
 geojson = load_geojson(GEOJSON_PATH)
 basin_master = basin_dataframe(geojson)
 if basin_master.empty:
@@ -259,8 +346,8 @@ if use_llda:
 if use_bulletins:
     with st.spinner("Loading PAGASA basin forecasts and regional advisories..."):
         providers.append(cached_bulletins(bucket))
-if official_upload is not None:
-    providers.append(official_reports_csv.from_dataframe(pd.read_csv(official_upload)))
+if manual_result is not None:
+    providers.append(manual_result)
 
 water_readings, bulletin_df = combine_provider_results(providers)
 supplementary_registry = (
@@ -277,8 +364,16 @@ station_df = compute_station_state(
     rapid_rise_m_hr=float(rapid_rise),
     rapid_fall_m_hr=float(rapid_fall),
 )
+manual_station_mask = (
+    station_df.get("data_kind", pd.Series("", index=station_df.index))
+    .fillna("")
+    .astype(str)
+    .str.startswith("manual_work")
+) if not station_df.empty else pd.Series(dtype=bool)
+instrument_station_df = station_df.loc[~manual_station_mask].copy() if not station_df.empty else station_df.copy()
 
-basin_water = aggregate_by_basin(station_df)
+# One-off social/manual reports are visual evidence, not silent inputs to the basin hazard score.
+basin_water = aggregate_by_basin(instrument_station_df)
 water_defaults = {
     "water_status": "No Data",
     "station_count": 0,
@@ -298,13 +393,14 @@ hazard_df["combined_level"] = hazard_df.apply(
     lambda row: combined_level(row["hazard_level"], row["water_status"]), axis=1
 )
 
-metrics = st.columns(6)
+metrics = st.columns(7)
 metrics[0].metric("Basins", len(hazard_df))
 metrics[1].metric("Providers enabled", len(providers))
-metrics[2].metric("Water stations", len(station_df))
-metrics[3].metric("Mapped stations", int(station_df[["lat", "lon"]].notna().all(axis=1).sum()) if not station_df.empty else 0)
-metrics[4].metric("Alarm/Critical", int(station_df["water_status"].isin(["Alarm", "Critical"]).sum()) if not station_df.empty else 0)
-metrics[5].metric("Rapid rise", int(station_df.get("rapid_rise", pd.Series(dtype=bool)).fillna(False).sum()) if not station_df.empty else 0)
+metrics[2].metric("Numerical rows", len(station_df))
+metrics[3].metric("Manual reports", len(manual_report_df))
+metrics[4].metric("Mapped rows", int(station_df[["lat", "lon"]].notna().all(axis=1).sum()) if not station_df.empty else 0)
+metrics[5].metric("Alarm/Critical", int(station_df["water_status"].isin(["Alarm", "Critical"]).sum()) if not station_df.empty else 0)
+metrics[6].metric("Rapid rise", int(instrument_station_df.get("rapid_rise", pd.Series(dtype=bool)).fillna(False).sum()) if not instrument_station_df.empty else 0)
 
 if rain_errors:
     with st.expander("Rainfall retrieval issues"):
@@ -330,23 +426,31 @@ if show_target_river_map:
         "Large labels summarize each requested river or area. Click a label to see numerical stations and related official forecasts/advisories. "
         "The exact-coordinate layer plots only verified numerical locations; qualitative markers are clearly labelled as forecasts or advisories."
     )
-    target_map, tagged_target_stations = build_target_river_map(station_df, bulletin_df)
+    target_map, tagged_target_stations = build_target_river_map(
+        station_df,
+        bulletin_df,
+        manual_reports=manual_report_df,
+    )
     st_folium(
         target_map,
         height=650,
         use_container_width=True,
-        key="requested_river_watch_map_v55",
+        key="requested_river_watch_map_v56",
     )
     target_count = int(tagged_target_stations["target_key"].ne("").sum()) if not tagged_target_stations.empty else 0
-    exact_count = int(
-        tagged_target_stations.loc[tagged_target_stations["target_key"].ne(""), ["lat", "lon"]]
-        .notna()
-        .all(axis=1)
-        .sum()
-    ) if not tagged_target_stations.empty else 0
+    if not tagged_target_stations.empty:
+        exact_candidates = tagged_target_stations[tagged_target_stations["target_key"].ne("")].copy()
+        if "data_kind" in exact_candidates.columns:
+            exact_candidates = exact_candidates[
+                ~exact_candidates["data_kind"].fillna("").astype(str).str.startswith("manual_work")
+            ]
+        exact_count = int(exact_candidates[["lat", "lon"]].notna().all(axis=1).sum())
+    else:
+        exact_count = 0
     st.caption(
         f"Requested-river station rows represented: {target_count}. "
-        f"Rows with verified exact coordinates: {exact_count}."
+        f"Rows with verified exact coordinates: {exact_count}. "
+        f"Manual report markers: {int(manual_report_df[["lat", "lon"]].notna().all(axis=1).sum()) if not manual_report_df.empty else 0}."
     )
 
 st.subheader("Data-source health")
@@ -382,13 +486,13 @@ if show_province_trend_map:
         """,
         unsafe_allow_html=True,
     )
-    if station_df.empty:
-        st.info("No water-level station readings are available for the province trend map.")
+    if instrument_station_df.empty:
+        st.info("No instrument water-level readings are available for the province trend map.")
     else:
         try:
             with st.spinner("Loading province boundaries and restoring water-level trend labels..."):
                 province_geojson, province_centroids, province_source_name = cached_province_reference()
-                province_station_df = match_station_provinces(station_df, province_centroids)
+                province_station_df = match_station_provinces(instrument_station_df, province_centroids)
                 province_map, mapped_province_stations, province_summary_df = build_province_water_map(
                     province_station_df,
                     province_geojson,
@@ -404,7 +508,8 @@ if show_province_trend_map:
             matched_count = int(mapped_province_stations["province_ref_key"].notna().sum()) if not mapped_province_stations.empty else 0
             st.caption(
                 f"Province boundary source: {province_source_name} · "
-                f"Province-matched gauges displayed: {matched_count} of {len(station_df)}."
+                f"Province-matched instrument gauges displayed: {matched_count} of {len(instrument_station_df)}. "
+                "One-off ChatGPT Work/manual reports are shown on the national map instead of the rise/fall map."
             )
             if province_summary_df.empty:
                 st.warning(
@@ -421,10 +526,10 @@ if show_province_trend_map:
 st.markdown("---")
 st.subheader("Combined rainfall and water-level map")
 monitor_map = build_monitoring_map(geojson, hazard_df, station_df, view=map_view)
-st_folium(monitor_map, height=720, use_container_width=True, key="clean_v55_monitor_map")
+st_folium(monitor_map, height=720, use_container_width=True, key="clean_v56_monitor_map")
 
-station_tab, history_tab, bulletin_tab, basin_tab = st.tabs(
-    ["Latest water readings", "Reading history", "Basin bulletins", "Basin screening"]
+station_tab, history_tab, manual_tab, bulletin_tab, basin_tab = st.tabs(
+    ["Latest water readings", "Reading history", "ChatGPT Work reports", "Basin bulletins", "Basin screening"]
 )
 
 with station_tab:
@@ -473,6 +578,27 @@ with history_tab:
         st.line_chart(history.set_index("timestamp")[["level_m"]])
         st.dataframe(history.sort_values("timestamp", ascending=False), use_container_width=True, hide_index=True)
 
+
+with manual_tab:
+    if manual_report_df.empty:
+        st.info("No ChatGPT Work/manual report result is currently pasted or uploaded.")
+    else:
+        manual_display = manual_report_df.copy()
+        manual_display["observed_at"] = manual_display["observed_at"].apply(format_time)
+        manual_display["level_m"] = pd.to_numeric(manual_display["level_m"], errors="coerce").round(3)
+        manual_display["mapped"] = manual_display[["lat", "lon"]].notna().all(axis=1)
+        st.dataframe(manual_display, use_container_width=True, hide_index=True)
+        st.download_button(
+            "Download normalized manual reports",
+            data=manual_report_df.to_csv(index=False).encode("utf-8"),
+            file_name="normalized_chatgpt_work_reports.csv",
+            mime="text/csv",
+        )
+        st.caption(
+            "Numerical values are converted to metres for consistent display, while the original value and unit remain visible. "
+            "Qualitative rows are mapped as reports and do not enter the instrument-based basin hazard calculation."
+        )
+
 with bulletin_tab:
     if bulletin_df.empty:
         st.info("No qualitative hydrological bulletin is currently available.")
@@ -509,7 +635,7 @@ col_a, col_b = st.columns(2)
 with col_a:
     if OFFICIAL_REPORT_TEMPLATE.exists():
         st.download_button(
-            "Download official-report CSV template",
+            "Download legacy official-report CSV template",
             data=OFFICIAL_REPORT_TEMPLATE.read_bytes(),
             file_name="official_report_template.csv",
             mime="text/csv",
@@ -532,7 +658,8 @@ st.markdown(
 - Bulacan PDRRMO sometimes publishes `No Record`; cached values are clearly marked and must not be treated as current.
 - The LLDA provider represents the lake-wide Laguna de Bay water-surface level. It must not be relabelled as a Victoria, Pagsanjan, San Juan, or other tributary-river measurement.
 - Abra, Panay, Cagayan de Oro and Davao are shown as PAGASA basin forecasts unless an explicit numerical station is available. Samar is shown from an extracted PAGASA regional advisory when one mentioning Samar is visible.
-- Official LGU reports imported from CSV remain a separate report type and are not silently treated as instrument measurements.
+- ChatGPT Work/manual official reports can be pasted as TSV or uploaded as CSV/TSV. Numerical values are normalized for display, but one-off reports do not silently alter the instrument-based basin hazard score.
+- Manual report map coordinates may be representative municipality/river-system anchors. The popup states the coordinate basis; only user-supplied or verified registry coordinates should be treated as exact.
 - This is an academic screening dashboard, not a replacement for official evacuation or flood-warning instructions.
 """
 )
