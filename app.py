@@ -34,7 +34,14 @@ from core.rainfall import (
 from core.registry import apply_supplementary_registry, load_registry
 from core.schema import ProviderResult, combine_provider_results
 from core.water import STATUS_RANK, aggregate_by_basin, combined_level, compute_station_state
-from providers import bulacan_pdrrmo, official_reports_csv, pagasa_bulletins, pagasa_pmt, philsensors
+from providers import (
+    bulacan_pdrrmo,
+    llda_water_level,
+    official_reports_csv,
+    pagasa_bulletins,
+    pagasa_pmt,
+    philsensors,
+)
 
 st.set_page_config(
     page_title="PH Multi-Source River Monitor",
@@ -42,7 +49,7 @@ st.set_page_config(
     layout="wide",
 )
 
-BUILD = "5.2.0"
+BUILD = "5.4.0"
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data"
 CACHE_DIR = ROOT / ".cache"
@@ -94,6 +101,12 @@ def cached_bulacan(bucket: int) -> ProviderResult:
 
 
 @st.cache_data(show_spinner=False, max_entries=4)
+def cached_llda(bucket: int, timeout_ms: int) -> ProviderResult:
+    del bucket
+    return llda_water_level.fetch(CACHE_DIR, timeout_ms=timeout_ms)
+
+
+@st.cache_data(show_spinner=False, max_entries=4)
 def cached_bulletins(bucket: int) -> ProviderResult:
     del bucket
     return pagasa_bulletins.fetch(CACHE_DIR)
@@ -123,8 +136,9 @@ def source_health_frame(results: list[ProviderResult]) -> pd.DataFrame:
 
 st.title("🌊 Philippine Multi-Source River Monitoring Dashboard")
 st.caption(
-    "Independent providers for PhilSensors, PAGASA Marikina–Tullahan, Bulacan/Pampanga stations, "
-    "PAGASA basin bulletins, and optional official LGU report imports."
+    "Independent providers for PhilSensors, PAGASA NCR–Rizal/PMT gauges, LLDA Laguna de Bay, "
+    "Bulacan/Pampanga stations, PAGASA basin forecasts for Abra, Panay, Cagayan de Oro and Davao, "
+    "Samar regional advisories, and optional official LGU report imports."
 )
 
 with st.sidebar:
@@ -137,9 +151,10 @@ with st.sidebar:
 
     st.subheader("Water providers")
     use_philsensors = st.checkbox("DOST-ASTI PhilSensors", value=True)
-    use_pmt = st.checkbox("PAGASA Marikina–Tullahan gauges", value=True)
+    use_pmt = st.checkbox("PAGASA NCR–Rizal live gauges", value=True)
     use_bulacan = st.checkbox("Bulacan PDRRMO river stations", value=True)
-    use_bulletins = st.checkbox("PAGASA/PRFFWC basin bulletins", value=True)
+    use_llda = st.checkbox("LLDA Laguna de Bay water level", value=True)
+    use_bulletins = st.checkbox("PAGASA basin forecasts and regional advisories", value=True)
 
     load_metadata = st.checkbox(
         "Load PhilSensors station coordinates",
@@ -168,7 +183,7 @@ with st.sidebar:
     show_target_river_map = st.checkbox(
         "Show requested-river watch map",
         value=True,
-        help="Shows Marikina, Tullahan, Meycauayan/MMORS, Pampanga, and Laguna as separate river-system groups.",
+        help="Shows numerical gauges and official forecasts/advisories for Marikina, Tullahan, Meycauayan, Pampanga, Laguna, Abra, Samar, Panay, Cagayan de Oro, and Davao.",
     )
 
     st.subheader("Province rise/fall map")
@@ -192,6 +207,7 @@ with st.sidebar:
         cached_philsensors.clear()
         cached_pmt.clear()
         cached_bulacan.clear()
+        cached_llda.clear()
         cached_bulletins.clear()
         cached_province_reference.clear()
         st.rerun()
@@ -220,13 +236,16 @@ if use_philsensors:
     with st.spinner("Loading PhilSensors..."):
         providers.append(cached_philsensors(bucket, int(browser_timeout * 1000), registry_csv, load_metadata))
 if use_pmt:
-    with st.spinner("Loading PAGASA Marikina–Tullahan..."):
+    with st.spinner("Loading PAGASA NCR–Rizal water-level table..."):
         providers.append(cached_pmt(bucket, int(browser_timeout * 1000)))
 if use_bulacan:
     with st.spinner("Loading Bulacan PDRRMO river stations..."):
         providers.append(cached_bulacan(bucket))
+if use_llda:
+    with st.spinner("Loading the official LLDA Laguna de Bay level..."):
+        providers.append(cached_llda(bucket, int(browser_timeout * 1000)))
 if use_bulletins:
-    with st.spinner("Loading PAGASA basin bulletins..."):
+    with st.spinner("Loading PAGASA basin forecasts and regional advisories..."):
         providers.append(cached_bulletins(bucket))
 if official_upload is not None:
     providers.append(official_reports_csv.from_dataframe(pd.read_csv(official_upload)))
@@ -280,31 +299,31 @@ if rain_errors:
         st.write(rain_errors)
 
 st.subheader("Requested river coverage")
-target_summary = target_river_summary(station_df)
+target_summary = target_river_summary(station_df, bulletin_df)
 if "reference_level_m" in target_summary:
     target_summary["reference_level_m"] = pd.to_numeric(
         target_summary["reference_level_m"], errors="coerce"
     ).round(3)
 st.dataframe(target_summary, use_container_width=True, hide_index=True)
 st.caption(
-    "Each row now uses strict river-system matching. The reference level belongs to the named reference station; "
-    "levels from different gauges are not averaged because their elevation datums and thresholds can differ. "
-    "Laguna matching uses Laguna province or a named Laguna river, not the generic 'Pasig-Laguna' basin label."
+    "Numerical readings and qualitative forecasts are kept separate. The reference level belongs to the named station; "
+    "levels from different gauges are never averaged because their datums and thresholds can differ. "
+    "LLDA is treated as a lake-wide Laguna de Bay measurement, while Abra, Samar, Panay, Cagayan de Oro and Davao may show official forecasts/advisories without a numerical gauge."
 )
 
 if show_target_river_map:
     st.markdown("---")
-    st.subheader("🗺️ Marikina, Tullahan, Meycauayan, Pampanga and Laguna River Watch")
+    st.subheader("🗺️ National Requested-River and Official-Source Map")
     st.caption(
-        "Large labels are river-system summary anchors. Click a label to see every station-level reading. "
-        "The separate exact-coordinate layer plots only stations with verified latitude and longitude."
+        "Large labels summarize each requested river or area. Click a label to see numerical stations and related official forecasts/advisories. "
+        "The exact-coordinate layer plots only verified numerical locations; qualitative markers are clearly labelled as forecasts or advisories."
     )
     target_map, tagged_target_stations = build_target_river_map(station_df, bulletin_df)
     st_folium(
         target_map,
         height=650,
         use_container_width=True,
-        key="requested_river_watch_map_v52",
+        key="requested_river_watch_map_v54",
     )
     target_count = int(tagged_target_stations["target_key"].ne("").sum()) if not tagged_target_stations.empty else 0
     exact_count = int(
@@ -390,7 +409,7 @@ if show_province_trend_map:
 st.markdown("---")
 st.subheader("Combined rainfall and water-level map")
 monitor_map = build_monitoring_map(geojson, hazard_df, station_df, view=map_view)
-st_folium(monitor_map, height=720, use_container_width=True, key="clean_v52_monitor_map")
+st_folium(monitor_map, height=720, use_container_width=True, key="clean_v54_monitor_map")
 
 station_tab, history_tab, bulletin_tab, basin_tab = st.tabs(
     ["Latest water readings", "Reading history", "Basin bulletins", "Basin screening"]
@@ -402,12 +421,19 @@ with station_tab:
     else:
         display = station_df.copy()
         display["observed_at"] = display["timestamp"].apply(format_time)
-        display["level_m"] = pd.to_numeric(display["level_m"], errors="coerce").round(3)
-        display["rise_rate_m_hr"] = pd.to_numeric(display["rise_rate_m_hr"], errors="coerce").round(3)
+        for numeric_column in [
+            "level_m", "level_30min_ago_m", "level_1hr_ago_m",
+            "level_2hr_ago_m", "rise_rate_m_hr",
+        ]:
+            if numeric_column in display.columns:
+                display[numeric_column] = pd.to_numeric(
+                    display[numeric_column], errors="coerce"
+                ).round(3)
         display["mapped"] = display[["lat", "lon"]].notna().all(axis=1)
         columns = [
             "source_name", "station_name", "river_system", "basin_name", "province", "municipality",
-            "level_m", "rise_rate_m_hr", "trend_label", "water_status", "threshold_status",
+            "level_m", "level_30min_ago_m", "level_1hr_ago_m", "level_2hr_ago_m",
+            "rise_rate_m_hr", "trend_label", "water_status", "threshold_status",
             "alert_m", "alarm_m", "critical_m", "observed_at", "mapped", "is_cached", "source_url", "notes",
         ]
         st.dataframe(
@@ -492,7 +518,8 @@ st.markdown(
 - PhilSensors and the PAGASA PMT integration read public webpages and may require parser maintenance when a site changes.
 - Marikina and Tullahan values are station elevation readings; compare them only against thresholds for the same station.
 - Bulacan PDRRMO sometimes publishes `No Record`; cached values are clearly marked and must not be treated as current.
-- For Laguna, the app uses any available PhilSensors gauge in Laguna plus PAGASA's qualitative NCR/Pasig-Marikina-Laguna de Bay bulletin. It does not claim a Victoria or Pagsanjan numerical river level without an identified official gauge.
+- The LLDA provider represents the lake-wide Laguna de Bay water-surface level. It must not be relabelled as a Victoria, Pagsanjan, San Juan, or other tributary-river measurement.
+- Abra, Panay, Cagayan de Oro and Davao are shown as PAGASA basin forecasts unless an explicit numerical station is available. Samar is shown from an extracted PAGASA regional advisory when one mentioning Samar is visible.
 - Official LGU reports imported from CSV remain a separate report type and are not silently treated as instrument measurements.
 - This is an academic screening dashboard, not a replacement for official evacuation or flood-warning instructions.
 """
