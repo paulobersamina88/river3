@@ -1,0 +1,7 @@
+priority,match_pattern,lat,lon,region,province,municipality,basin_name,river_system,coordinate_basis,notes
+10,"balincaguing|mdrrmo mabini pangasinan",16.0700,119.9400,Ilocos Region,Pangasinan,Mabini,,Balincaguing River,"Representative municipality anchor","Approximate display anchor for visualization; not an exact gauge coordinate."
+20,"marusay|sinucalan|calasiao",16.0110,120.3600,Ilocos Region,Pangasinan,Calasiao,Agno,Marusay / Sinucalan River,"Representative municipality anchor","Approximate display anchor for visualization; not an exact gauge coordinate."
+30,"bimmal.?lasiw|mdrrmo.?quirino|quirino ilocos sur",17.1550,120.6700,Ilocos Region,Ilocos Sur,Quirino,Abra,Bimmal-lasiw River / Abra River,"Representative municipality anchor","Approximate display anchor for visualization; not an exact gauge coordinate."
+40,"marikina river",14.6507,121.1029,NCR,Metro Manila,Marikina,Pasig-Laguna,Marikina River,"Representative river-system anchor","Approximate display anchor; use a verified station registry for exact gauge coordinates."
+50,"upper wawa|morong river|civil defense calabarzon",14.5150,121.2400,CALABARZON,Rizal,Morong,,Upper Wawa Dam / Morong River area,"Representative municipality anchor","Approximate display anchor for visualization; not an exact dam or gauge coordinate."
+60,"davao river|davao city disaster",7.0731,125.6128,Davao Region,Davao del Sur,Davao City,Davao,Davao River,"Representative city anchor","Approximate display anchor for a citywide channel-status report."
