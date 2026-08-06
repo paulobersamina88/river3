@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import io
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+# Ensure the repository root is importable on Streamlit Cloud.
+APP_ROOT = Path(__file__).resolve().parent
+if str(APP_ROOT) not in sys.path:
+    sys.path.insert(0, str(APP_ROOT))
 
 import numpy as np
 import pandas as pd
@@ -12,6 +18,11 @@ from streamlit_folium import st_folium
 
 from core.geospatial import assign_basins
 from core.maps import build_monitoring_map, format_time
+from core.province_water_map import (
+    build_province_water_map,
+    fetch_province_reference,
+    match_station_provinces,
+)
 from core.rainfall import (
     basin_dataframe,
     compute_hazard,
@@ -30,7 +41,7 @@ st.set_page_config(
     layout="wide",
 )
 
-BUILD = "5.0.0"
+BUILD = "5.1.0"
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data"
 CACHE_DIR = ROOT / ".cache"
@@ -85,6 +96,11 @@ def cached_bulacan(bucket: int) -> ProviderResult:
 def cached_bulletins(bucket: int) -> ProviderResult:
     del bucket
     return pagasa_bulletins.fetch(CACHE_DIR)
+
+
+@st.cache_data(show_spinner=False, ttl=60 * 60 * 24)
+def cached_province_reference() -> tuple[dict, pd.DataFrame, str]:
+    return fetch_province_reference()
 
 
 def source_health_frame(results: list[ProviderResult]) -> pd.DataFrame:
@@ -195,11 +211,29 @@ with st.sidebar:
     rapid_rise = st.number_input("Rapid rise (m/hour)", 0.01, 5.0, 0.30, 0.05)
     rapid_fall = st.number_input("Rapid fall (m/hour)", 0.01, 5.0, 0.30, 0.05)
 
+    st.subheader("Province rise/fall map")
+    show_province_trend_map = st.checkbox(
+        "Show province water-level trend map",
+        value=True,
+        help="Restores the large province labels and trend shading from dashboard build 3.8.",
+    )
+    include_inactive_province_map = st.checkbox(
+        "Include stale/offline gauges when a change value is available",
+        value=True,
+        disabled=not show_province_trend_map,
+    )
+    only_rapid_province_map = st.checkbox(
+        "Show only rapid-rise or rapid-fall provinces",
+        value=False,
+        disabled=not show_province_trend_map,
+    )
+
     if st.button("Force all providers to refresh"):
         cached_philsensors.clear()
         cached_pmt.clear()
         cached_bulacan.clear()
         cached_bulletins.clear()
+        cached_province_reference.clear()
         st.rerun()
 
 geojson = load_geojson(GEOJSON_PATH)
@@ -305,6 +339,64 @@ for result in providers:
         with st.expander(f"{result.provider}: error details"):
             st.code(result.error)
 
+if show_province_trend_map:
+    st.markdown("---")
+    st.subheader("💧 Observed Water-Level Rise/Fall Map")
+    st.caption(
+        "Province shading and large labels show the strongest measured hourly change. "
+        "Red/orange means rising; blue means falling; grey means nearly stable. "
+        "The map combines compatible readings from all enabled providers, not only PhilSensors."
+    )
+    st.markdown(
+        """
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px">
+          <span style="background:#b91c1c;color:white;padding:4px 8px;border-radius:12px">↑↑ Rapid rise</span>
+          <span style="background:#f97316;color:white;padding:4px 8px;border-radius:12px">↑ Rising</span>
+          <span style="background:#6b7280;color:white;padding:4px 8px;border-radius:12px">→ Stable</span>
+          <span style="background:#3b82f6;color:white;padding:4px 8px;border-radius:12px">↓ Falling</span>
+          <span style="background:#1d4ed8;color:white;padding:4px 8px;border-radius:12px">↓↓ Rapid fall</span>
+          <span style="background:#7e22ce;color:white;padding:4px 8px;border-radius:12px">↕ Mixed rapid change</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if station_df.empty:
+        st.info("No water-level station readings are available for the province trend map.")
+    else:
+        try:
+            with st.spinner("Loading province boundaries and restoring water-level trend labels..."):
+                province_geojson, province_centroids, province_source_name = cached_province_reference()
+                province_station_df = match_station_provinces(station_df, province_centroids)
+                province_map, mapped_province_stations, province_summary_df = build_province_water_map(
+                    province_station_df,
+                    province_geojson,
+                    include_inactive=include_inactive_province_map,
+                    only_rapid=only_rapid_province_map,
+                )
+            st_folium(
+                province_map,
+                height=760,
+                use_container_width=True,
+                key="province_water_level_map_v51",
+            )
+            matched_count = int(mapped_province_stations["province_ref_key"].notna().sum()) if not mapped_province_stations.empty else 0
+            st.caption(
+                f"Province boundary source: {province_source_name} · "
+                f"Province-matched gauges displayed: {matched_count} of {len(station_df)}."
+            )
+            if province_summary_df.empty:
+                st.warning(
+                    "No province labels were produced. Keep 'Include stale/offline gauges' enabled "
+                    "or confirm that the stations include province names and numeric rise/fall values."
+                )
+        except Exception as exc:
+            st.error(f"The province water-level map could not be rendered: {type(exc).__name__}: {exc}")
+            st.caption(
+                "The combined basin map and station tables remain available. The province map "
+                "depends on public Philippine government boundary services."
+            )
+
+st.markdown("---")
 st.subheader("Combined rainfall and water-level map")
 monitor_map = build_monitoring_map(geojson, hazard_df, station_df, view=map_view)
 st_folium(monitor_map, height=720, use_container_width=True, key="clean_v5_monitor_map")

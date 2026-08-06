@@ -149,3 +149,15 @@ The external government webpages cannot be reached from the build container, so 
 - Bulacan PDRRMO may temporarily publish `No Record`.
 - The included basin GeoJSON contains simplified placeholder polygons inherited from the uploaded repository. Replace it with validated basin boundaries before operational use.
 - This dashboard is an academic screening tool and does not replace PAGASA, DOST-ASTI, LLDA, LGU, DRRMO, dam-operator, or evacuation advisories.
+
+## Build 5.1.0 — restored province rise/fall map
+
+The province-level observed water-level map from dashboard build 3.8 is restored. It includes:
+
+- province trend shading;
+- large visible rise/fall labels in m/hour;
+- per-province gauge counts;
+- a popup table with station, source, current level, trend, status, and timestamp;
+- controls for including stale/offline readings and showing only rapid changes.
+
+The map combines compatible numerical readings from all enabled providers. It remains separate from the river-basin rainfall/combined-hazard map.

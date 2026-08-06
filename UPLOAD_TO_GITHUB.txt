@@ -1,0 +1,14 @@
+UPLOAD ALL ITEMS IN THIS FOLDER TO THE REPOSITORY ROOT.
+
+Required root items:
+- app.py
+- requirements.txt
+- packages.txt
+- core/          (entire folder)
+- providers/     (entire folder)
+- data/          (entire folder)
+- philsensors_scraper.py
+- .streamlit/    (entire folder)
+
+Do not upload app.py alone.
+In Streamlit Cloud, set the main file path to: app.py
