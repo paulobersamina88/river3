@@ -1,8 +1,9 @@
-PH River Monitor build 5.2.0
+PH River Monitor build 5.6.0
 
-Extract this ZIP, then upload every file and folder inside it to the ROOT of your GitHub repository.
-Do not upload only app.py. Build 5.2 also requires core/target_river_map.py and the other core/providers/data folders.
-
-After committing:
-Streamlit Cloud -> Manage app -> Clear cache -> Reboot app
-Main file path: app.py
+1. Extract this ZIP.
+2. Open the extracted folder.
+3. Upload ALL files and folders inside it to the GitHub repository root.
+4. Confirm app.py, requirements.txt, packages.txt, core/, providers/, data/, tests/, and .streamlit/ are visible at the root.
+5. In Streamlit Cloud: Manage app -> Clear cache -> Reboot.
+6. Confirm the sidebar displays: Clean package build 5.6.0
+7. Open the ChatGPT Work/manual report expander, paste the TSV result, and confirm the manual-report layer is enabled on the national map.

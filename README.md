@@ -1,111 +1,63 @@
-# Philippine Multi-Source River Monitoring Dashboard — Build 5.0.0
+# Philippine Multi-Source River Monitoring Dashboard — Build 5.6.0
 
-This is a **new, independent Streamlit package** created from the uploaded `river2-main` repository. The original working application is preserved as `legacy_app_v3_8.py`; the clean deployment entry point is the new `app.py`.
+This is a separate Streamlit application package. The original legacy app remains saved as `legacy_app_v3_8.py`.
 
-## Build 5.2 corrections
+## Build 5.4 additions
 
-- Corrected the requested-river summary so it no longer treats the generic `Pasig-Laguna` basin name as a Laguna river reading.
-- Marikina, Tullahan, Meycauayan/MMORS, Pampanga, and Laguna now use strict river/province matching.
-- Added a dedicated requested-river watch map with clickable station tables.
-- River-system summary markers use clearly labelled representative display anchors; exact station markers appear only when verified coordinates are available.
-- The summary reports a named reference station instead of choosing an arbitrary last row from stations that share the same timestamp.
+- Added an **LLDA Laguna de Bay provider** using the official LLDA water-level page. It tries a normal HTTP read first and a rendered Chromium page second, then falls back to the last successful cache.
+- Expanded PAGASA hydrological bulletins to include:
+  - Abra River Basin
+  - Panay River Basin
+  - Cagayan de Oro River Basin
+  - Davao River Basin
+  - NCR/Pasig–Marikina–Laguna de Bay
+  - the newest visible PAGASA Visayas regional advisory that mentions Samar
+- Added PAGASA Flood Information index parsing so each basin can display `Flood Watch` or `Non-Flood Watch` when the main page publishes that status.
+- Added PDF text parsing for current PAGASA bulletin links using `pypdf`.
+- Expanded the requested-river map to a national map covering:
+  - Marikina River
+  - Tullahan River
+  - Meycauayan/MMORS
+  - Pampanga River
+  - Laguna de Bay / Laguna area
+  - Abra River Basin
+  - Samar rivers
+  - Panay River Basin
+  - Cagayan de Oro River Basin
+  - Davao River Basin
+- Numerical measurements and qualitative forecasts/advisories are displayed separately and clearly labelled.
 
-## Included monitoring sources
+## Numerical providers
 
-### Numerical water-level providers
+1. DOST-ASTI PhilSensors
+2. PAGASA NCR–Rizal / Pasig–Marikina–Tullahan gauges
+3. Bulacan PDRRMO river stations
+4. LLDA Laguna de Bay lake level
+5. ChatGPT Work / manual official report CSV or TSV import
 
-1. **DOST-ASTI PhilSensors**
-   - Uses the existing `philsensors_scraper.py` from the uploaded repository.
-   - Reads public water-level readings with Playwright.
-   - Optionally loads the public station catalogue for coordinates.
-   - Uses a last-successful local cache.
+## Qualitative providers
 
-2. **PAGASA Pasig–Marikina–Tullahan FFWS**
-   - Source: `https://pasig-marikina-tullahanffws.pagasa.dost.gov.ph/water/table.do`
-   - Attempts a direct HTML read first, then a Playwright-rendered page.
-   - Extracts current, 30-minute, one-hour, and two-hour levels when available.
-   - Preserves station-specific Alert, Alarm, and Critical elevation thresholds.
-   - Classifies station names conservatively as Marikina, Tullahan, or the wider PMT system.
+1. PAGASA Flood Information and basin hydrological forecasts
+2. PAGASA Visayas regional advisory for Samar when a current visible advisory mentions Samar
+3. PRFFWC qualitative Pampanga sub-basin status when the HTML status table is available
 
-3. **Bulacan PDRRMO River Status Stations**
-   - Source: `https://pdrrmo.bulacan.gov.ph/`
-   - Reads the public River Status Stations table.
-   - Identifies clearly named Pampanga and Meycauayan–Marilao–Obando system stations.
-   - Stores successive retrievals to estimate retrieval-to-retrieval change.
-   - When the official page says `No Record`, no numerical value is invented.
+A PAGASA basin forecast is not treated as a measured level in metres. LLDA is treated as a lake-wide Laguna de Bay level and is not relabelled as a Victoria, Pagsanjan, San Juan, or another tributary-river reading.
 
-4. **Official LGU report CSV import**
-   - Intended for targeted DRRMO reports collected during a Severe/Extreme event.
-   - Supports metres, feet, centimetres, and millimetres.
-   - Keeps social/public-report records separate from instrument feeds.
-
-### Qualitative hydrological bulletins
-
-- PAGASA NCR/Pasig–Marikina–Laguna de Bay basin bulletin
-- PAGASA Abra River Basin bulletin
-- Pampanga River Flood Forecasting and Warning Center status table when reachable
-
-These bulletins are displayed separately because they are basin forecasts, **not numerical station measurements**.
-
-## Requested river coverage
-
-The dashboard has a dedicated coverage table for:
-
-- Marikina River
-- Tullahan River
-- Meycauayan–Marilao–Obando River System
-- Pampanga River
-- Available Laguna rivers or Laguna de Bay system observations
-
-For Laguna, the app uses numerical PhilSensors gauges whose station metadata identify Laguna. It also displays the PAGASA NCR/Pasig–Marikina–Laguna de Bay qualitative bulletin. It does not claim a Victoria or Pagsanjan numerical level without an identified official gauge.
-
-## Package structure
+## GitHub structure
 
 ```text
-ph_river_monitor_v5/
-├── app.py                         # clean Streamlit entry point
-├── legacy_app_v3_8.py             # untouched reference copy of the old app
-├── philsensors_scraper.py         # uploaded working PhilSensors scraper
-├── requirements.txt
-├── packages.txt
-├── .streamlit/
-│   └── config.toml
-├── core/
-│   ├── geospatial.py
-│   ├── history.py
-│   ├── maps.py
-│   ├── rainfall.py
-│   ├── registry.py
-│   ├── schema.py
-│   └── water.py
-├── providers/
-│   ├── bulacan_pdrrmo.py
-│   ├── official_reports_csv.py
-│   ├── pagasa_bulletins.py
-│   ├── pagasa_pmt.py
-│   └── philsensors.py
-├── data/
-│   ├── major_river_basins_simplified.geojson
-│   ├── sample_basin_rainfall.csv
-│   ├── sample_typhoon_track.csv
-│   ├── philsensors_station_registry.csv
-│   ├── supplementary_station_registry.csv
-│   └── official_report_template.csv
-└── tests/
-    └── test_parsers.py
+app.py
+requirements.txt
+packages.txt
+philsensors_scraper.py
+core/
+providers/
+data/
+tests/
+.streamlit/
 ```
 
-## Deploy as a new GitHub repository
-
-1. Extract this ZIP.
-2. Create a new GitHub repository, for example `ph-river-monitor-v5`.
-3. Upload **the contents inside** the extracted folder, not the outer folder itself.
-4. Confirm that `app.py`, `requirements.txt`, and `packages.txt` are in the repository root.
-5. Create a new Streamlit Community Cloud app.
-6. Select the new repository and set the entry file to `app.py`.
-7. Deploy.
-
-Do not overwrite your existing `river2` deployment until this new app has been tested.
+Upload the **contents** of the extracted package to the repository root. Keep the Streamlit main file path as `app.py`.
 
 ## Local run
 
@@ -115,57 +67,28 @@ playwright install chromium
 streamlit run app.py
 ```
 
-On Streamlit Community Cloud, `packages.txt` installs system Chromium. The code automatically checks common Chromium paths.
+## Validation completed
 
-## Updating station coordinates
+- Python compilation for all application, core, and provider modules
+- Twelve parser, manual-report, and target-classification tests
+- Offline Folium map rendering test
 
-PAGASA PMT and Bulacan readings can appear in the station table even when exact coordinates are not available. They are placed on the map only after verified coordinates are supplied.
+Live government-site access was unavailable from the build environment. The Data-source health table will show whether each provider is live, cached, partial, or unavailable after deployment.
 
-Edit:
+## Build 5.5 additions
 
-```text
-data/supplementary_station_registry.csv
-```
+- PRFFWC Pampanga numerical water levels extracted from the official daily infographic.
+- LLDA official-image/page OCR fallback for Laguna de Bay lake level.
+- Direct PAGASA Abra basin forecast retained.
 
-Fill in `lat` and `lon` only after checking the official station map or station page. Avoid using a municipality centre as though it were the actual gauge location.
 
-## Source isolation
+## Build 5.6 additions
 
-Each provider runs independently. A failure in one provider does not stop the others. The Data-source health table reports:
-
-- `live`
-- `cache`
-- `empty`
-- `error`
-- `uploaded`
-
-Cached values are explicitly marked and should not be treated as current observations.
-
-## Tests completed
-
-- Python syntax compilation for the application, provider modules, core modules, and PhilSensors scraper
-- Simulated PAGASA PMT multi-row table parsing
-- Simulated Bulacan PDRRMO river-table parsing
-- Official LGU CSV unit conversion from feet to metres
-
-The external government webpages cannot be reached from the build container, so final live-source validation must occur after deployment.
-
-## Important technical limitations
-
-- Public webpage structure may change and require parser maintenance.
-- PAGASA PMT readings are elevation values (`EL.m`); compare only with thresholds for the same station.
-- Bulacan PDRRMO may temporarily publish `No Record`.
-- The included basin GeoJSON contains simplified placeholder polygons inherited from the uploaded repository. Replace it with validated basin boundaries before operational use.
-- This dashboard is an academic screening tool and does not replace PAGASA, DOST-ASTI, LLDA, LGU, DRRMO, dam-operator, or evacuation advisories.
-
-## Build 5.2.0 — restored province rise/fall map
-
-The province-level observed water-level map from dashboard build 3.8 is restored. It includes:
-
-- province trend shading;
-- large visible rise/fall labels in m/hour;
-- per-province gauge counts;
-- a popup table with station, source, current level, trend, status, and timestamp;
-- controls for including stale/offline readings and showing only rapid changes.
-
-The map combines compatible numerical readings from all enabled providers. It remains separate from the river-basin rainfall/combined-hazard map.
+- Paste or upload ChatGPT Work results as TSV, CSV, or text.
+- Flexible support for `requested_source`, `reporting_source`, `river_or_site`, `level`, `unit`, `status`, `observed_at`, `source_url`, and `notes`.
+- Numerical reports are normalized to metres while retaining the original value and unit.
+- Qualitative rows such as `CODE GREEN / Safe Level` remain non-numerical official reports.
+- Ambiguous local terms such as `Above Normal Level`, `middle level`, and `spilling` are preserved rather than forced into PAGASA Alert/Alarm/Critical classes.
+- Added a dedicated `ChatGPT Work / manual official reports` map layer.
+- Added a downloadable location registry; representative coordinates are clearly labelled and are not presented as exact gauge positions.
+- Manual one-off reports do not silently alter instrument-based basin hazard scores or province rise/fall trends.
