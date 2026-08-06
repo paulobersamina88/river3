@@ -5,11 +5,18 @@ import json
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin
 
 import numpy as np
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from PIL import Image, ImageOps
+
+try:
+    import pytesseract
+except Exception:  # pragma: no cover
+    pytesseract = None
 
 from core.schema import (
     MANILA_TZ,
@@ -25,7 +32,7 @@ SOURCE_URLS = [
     "https://www.llda.gov.ph/water-level/",
 ]
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; PH-River-Monitor/5.4; academic research)",
+    "User-Agent": "Mozilla/5.0 (compatible; PH-River-Monitor/5.5; academic research)",
     "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
 }
 
@@ -226,6 +233,70 @@ def _parse_embedded_json(html: str, source_url: str) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+
+
+def _ocr_image(image: Image.Image, config: str = "--psm 6") -> str:
+    if pytesseract is None:
+        raise RuntimeError("pytesseract is not installed")
+    rgb = image.convert("RGB")
+    scale = 3 if max(rgb.size) > 1000 else 5
+    enlarged = rgb.resize((max(rgb.width * scale, 1), max(rgb.height * scale, 1)))
+    gray = ImageOps.grayscale(enlarged)
+    return pytesseract.image_to_string(gray, config=config).strip()
+
+
+def parse_llda_image(image_bytes: bytes, source_url: str = SOURCE_URLS[0]) -> pd.DataFrame:
+    """Extract a lake-wide level from an official LLDA update image or page screenshot."""
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    if image.width < 300 or image.height < 120:
+        return pd.DataFrame()
+    text = clean_text(_ocr_image(image))
+    # Require clear Laguna-de-Bay context to avoid reading unrelated numbers
+    # from the LLDA website navigation or other posts.
+    if not re.search(r"laguna\s+(?:de\s+)?bay|laguna\s+lake", text, flags=re.I):
+        return pd.DataFrame()
+    frame = _parse_text(text, source_url)
+    if frame is None or frame.empty:
+        return pd.DataFrame()
+    frame["notes"] = (
+        "Lake-wide Laguna de Bay level extracted from an official LLDA update image/page. "
+        "It is not a tributary-river measurement."
+    )
+    return normalize_readings(frame, PROVIDER_NAME)
+
+
+def _image_urls(html: str, base_url: str) -> list[str]:
+    soup = BeautifulSoup(html, "html.parser")
+    urls: list[str] = []
+    for image in soup.find_all("img"):
+        src = image.get("src") or image.get("data-src") or image.get("data-original")
+        if not src:
+            continue
+        url = urljoin(base_url, src)
+        if url not in urls:
+            urls.append(url)
+    return sorted(
+        urls,
+        key=lambda url: (
+            0 if any(term in url.lower() for term in ["water", "level", "laguna", "lake"]) else 1,
+            url,
+        ),
+    )
+
+
+def _parse_page_images(html: str, base_url: str) -> pd.DataFrame:
+    for image_url in _image_urls(html, base_url):
+        try:
+            response = requests.get(image_url, timeout=35, headers=HEADERS)
+            response.raise_for_status()
+            frame = parse_llda_image(response.content, response.url)
+            if not frame.empty:
+                return frame
+        except Exception:
+            continue
+    return pd.DataFrame()
+
+
 def parse_llda_html(html: str, source_url: str = SOURCE_URLS[0]) -> pd.DataFrame:
     for parser in (_parse_tables, _parse_embedded_json):
         frame = parser(html, source_url)
@@ -236,7 +307,7 @@ def parse_llda_html(html: str, source_url: str = SOURCE_URLS[0]) -> pd.DataFrame
     return normalize_readings(frame, PROVIDER_NAME) if frame is not None and not frame.empty else pd.DataFrame()
 
 
-def _rendered_html(url: str, timeout_ms: int) -> str:
+def _rendered_assets(url: str, timeout_ms: int) -> tuple[str, list[bytes]]:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as playwright:
@@ -244,15 +315,30 @@ def _rendered_html(url: str, timeout_ms: int) -> str:
             headless=True,
             args=["--no-sandbox", "--disable-dev-shm-usage"],
         )
-        page = browser.new_page(viewport={"width": 1440, "height": 1200})
+        page = browser.new_page(viewport={"width": 1440, "height": 1400})
         page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
         try:
             page.wait_for_load_state("networkidle", timeout=min(timeout_ms, 30000))
         except Exception:
             pass
         content = page.content()
+        images: list[bytes] = []
+        locators = page.locator("img")
+        for index in range(locators.count()):
+            locator = locators.nth(index)
+            try:
+                box = locator.bounding_box()
+                if not box or box["width"] < 300 or box["height"] < 100:
+                    continue
+                images.append(locator.screenshot(type="png"))
+            except Exception:
+                continue
+        try:
+            images.append(page.screenshot(full_page=True, type="png"))
+        except Exception:
+            pass
         browser.close()
-        return content
+        return content, images
 
 
 def fetch(cache_dir: str | Path, timeout_ms: int = 90000) -> ProviderResult:
@@ -266,7 +352,9 @@ def fetch(cache_dir: str | Path, timeout_ms: int = 90000) -> ProviderResult:
             response.raise_for_status()
             readings = parse_llda_html(response.text, response.url)
             if readings.empty:
-                raise ValueError("no current Laguna de Bay level was found in the static page")
+                readings = _parse_page_images(response.text, response.url)
+            if readings.empty:
+                raise ValueError("no current Laguna de Bay level was found in the static page or its official images")
             cache_path = cache / "llda_laguna_de_bay_last_success.csv"
             readings.to_csv(cache_path, index=False)
             return ProviderResult(
@@ -281,10 +369,15 @@ def fetch(cache_dir: str | Path, timeout_ms: int = 90000) -> ProviderResult:
             errors.append(f"requests {url}: {type(exc).__name__}: {exc}")
 
         try:
-            rendered = _rendered_html(url, timeout_ms=timeout_ms)
+            rendered, images = _rendered_assets(url, timeout_ms=timeout_ms)
             readings = parse_llda_html(rendered, url)
             if readings.empty:
-                raise ValueError("no current Laguna de Bay level was found after browser rendering")
+                for image_bytes in images:
+                    readings = parse_llda_image(image_bytes, url)
+                    if not readings.empty:
+                        break
+            if readings.empty:
+                raise ValueError("no current Laguna de Bay level was found after browser rendering or image extraction")
             cache_path = cache / "llda_laguna_de_bay_last_success.csv"
             readings.to_csv(cache_path, index=False)
             return ProviderResult(
