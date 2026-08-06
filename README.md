@@ -2,6 +2,14 @@
 
 This is a **new, independent Streamlit package** created from the uploaded `river2-main` repository. The original working application is preserved as `legacy_app_v3_8.py`; the clean deployment entry point is the new `app.py`.
 
+## Build 5.2 corrections
+
+- Corrected the requested-river summary so it no longer treats the generic `Pasig-Laguna` basin name as a Laguna river reading.
+- Marikina, Tullahan, Meycauayan/MMORS, Pampanga, and Laguna now use strict river/province matching.
+- Added a dedicated requested-river watch map with clickable station tables.
+- River-system summary markers use clearly labelled representative display anchors; exact station markers appear only when verified coordinates are available.
+- The summary reports a named reference station instead of choosing an arbitrary last row from stations that share the same timestamp.
+
 ## Included monitoring sources
 
 ### Numerical water-level providers
@@ -150,7 +158,7 @@ The external government webpages cannot be reached from the build container, so 
 - The included basin GeoJSON contains simplified placeholder polygons inherited from the uploaded repository. Replace it with validated basin boundaries before operational use.
 - This dashboard is an academic screening tool and does not replace PAGASA, DOST-ASTI, LLDA, LGU, DRRMO, dam-operator, or evacuation advisories.
 
-## Build 5.1.0 — restored province rise/fall map
+## Build 5.2.0 — restored province rise/fall map
 
 The province-level observed water-level map from dashboard build 3.8 is restored. It includes:
 

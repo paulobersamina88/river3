@@ -23,6 +23,7 @@ from core.province_water_map import (
     fetch_province_reference,
     match_station_provinces,
 )
+from core.target_river_map import build_target_river_map, target_river_summary
 from core.rainfall import (
     basin_dataframe,
     compute_hazard,
@@ -41,7 +42,7 @@ st.set_page_config(
     layout="wide",
 )
 
-BUILD = "5.1.0"
+BUILD = "5.2.0"
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data"
 CACHE_DIR = ROOT / ".cache"
@@ -120,54 +121,6 @@ def source_health_frame(results: list[ProviderResult]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def target_river_summary(stations: pd.DataFrame) -> pd.DataFrame:
-    targets = [
-        ("Marikina River", r"marikina"),
-        ("Tullahan River", r"tullahan"),
-        ("Meycauayan/MMORS", r"meycauayan|marilao|obando|mmors|northville"),
-        ("Pampanga River", r"pampanga|sulipan|apalit|candaba"),
-        ("Laguna rivers/lake system", r"laguna|pagsanjan|san cristobal|santa cruz|victoria"),
-    ]
-    rows = []
-    if stations is None:
-        stations = pd.DataFrame()
-    searchable = pd.Series("", index=stations.index)
-    if not stations.empty:
-        searchable = (
-            stations[["river_system", "station_name", "location", "province", "municipality", "basin_name"]]
-            .fillna("")
-            .astype(str)
-            .agg(" ".join, axis=1)
-            .str.lower()
-        )
-    for label, pattern in targets:
-        subset = stations[searchable.str.contains(pattern, regex=True, na=False)] if not stations.empty else pd.DataFrame()
-        if subset.empty:
-            rows.append(
-                {
-                    "target": label,
-                    "available_readings": 0,
-                    "latest_level_m": np.nan,
-                    "latest_status": "No verified numerical reading",
-                    "latest_observation": "-",
-                    "source": "-",
-                }
-            )
-            continue
-        latest = subset.sort_values("timestamp").iloc[-1]
-        rows.append(
-            {
-                "target": label,
-                "available_readings": len(subset),
-                "latest_level_m": latest.get("level_m"),
-                "latest_status": latest.get("water_status", latest.get("threshold_status", "No Data")),
-                "latest_observation": format_time(latest.get("timestamp")),
-                "source": latest.get("source_name", ""),
-            }
-        )
-    return pd.DataFrame(rows)
-
-
 st.title("🌊 Philippine Multi-Source River Monitoring Dashboard")
 st.caption(
     "Independent providers for PhilSensors, PAGASA Marikina–Tullahan, Bulacan/Pampanga stations, "
@@ -210,6 +163,13 @@ with st.sidebar:
     offline_minutes = st.number_input("Offline after (minutes)", 60, 10080, 1440, 60)
     rapid_rise = st.number_input("Rapid rise (m/hour)", 0.01, 5.0, 0.30, 0.05)
     rapid_fall = st.number_input("Rapid fall (m/hour)", 0.01, 5.0, 0.30, 0.05)
+
+    st.subheader("Requested-river map")
+    show_target_river_map = st.checkbox(
+        "Show requested-river watch map",
+        value=True,
+        help="Shows Marikina, Tullahan, Meycauayan/MMORS, Pampanga, and Laguna as separate river-system groups.",
+    )
 
     st.subheader("Province rise/fall map")
     show_province_trend_map = st.checkbox(
@@ -321,11 +281,42 @@ if rain_errors:
 
 st.subheader("Requested river coverage")
 target_summary = target_river_summary(station_df)
+if "reference_level_m" in target_summary:
+    target_summary["reference_level_m"] = pd.to_numeric(
+        target_summary["reference_level_m"], errors="coerce"
+    ).round(3)
 st.dataframe(target_summary, use_container_width=True, hide_index=True)
 st.caption(
-    "A target remains marked 'No verified numerical reading' when the corresponding official page has no current row. "
-    "The app does not invent a value or relabel a nearby station."
+    "Each row now uses strict river-system matching. The reference level belongs to the named reference station; "
+    "levels from different gauges are not averaged because their elevation datums and thresholds can differ. "
+    "Laguna matching uses Laguna province or a named Laguna river, not the generic 'Pasig-Laguna' basin label."
 )
+
+if show_target_river_map:
+    st.markdown("---")
+    st.subheader("🗺️ Marikina, Tullahan, Meycauayan, Pampanga and Laguna River Watch")
+    st.caption(
+        "Large labels are river-system summary anchors. Click a label to see every station-level reading. "
+        "The separate exact-coordinate layer plots only stations with verified latitude and longitude."
+    )
+    target_map, tagged_target_stations = build_target_river_map(station_df, bulletin_df)
+    st_folium(
+        target_map,
+        height=650,
+        use_container_width=True,
+        key="requested_river_watch_map_v52",
+    )
+    target_count = int(tagged_target_stations["target_key"].ne("").sum()) if not tagged_target_stations.empty else 0
+    exact_count = int(
+        tagged_target_stations.loc[tagged_target_stations["target_key"].ne(""), ["lat", "lon"]]
+        .notna()
+        .all(axis=1)
+        .sum()
+    ) if not tagged_target_stations.empty else 0
+    st.caption(
+        f"Requested-river station rows represented: {target_count}. "
+        f"Rows with verified exact coordinates: {exact_count}."
+    )
 
 st.subheader("Data-source health")
 health = source_health_frame(providers)
@@ -399,7 +390,7 @@ if show_province_trend_map:
 st.markdown("---")
 st.subheader("Combined rainfall and water-level map")
 monitor_map = build_monitoring_map(geojson, hazard_df, station_df, view=map_view)
-st_folium(monitor_map, height=720, use_container_width=True, key="clean_v5_monitor_map")
+st_folium(monitor_map, height=720, use_container_width=True, key="clean_v52_monitor_map")
 
 station_tab, history_tab, bulletin_tab, basin_tab = st.tabs(
     ["Latest water readings", "Reading history", "Basin bulletins", "Basin screening"]
