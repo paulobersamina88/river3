@@ -22,6 +22,9 @@ READING_COLUMNS = [
     "lon",
     "timestamp",
     "level_m",
+    "level_30min_ago_m",
+    "level_1hr_ago_m",
+    "level_2hr_ago_m",
     "rise_rate_m_hr",
     "alert_m",
     "alarm_m",
@@ -31,6 +34,7 @@ READING_COLUMNS = [
     "source_name",
     "source_url",
     "data_kind",
+    "coordinate_basis",
     "scraped_at",
     "is_cached",
     "notes",
@@ -150,7 +154,7 @@ def normalize_readings(raw: pd.DataFrame, provider_name: str = "") -> pd.DataFra
     output = raw.copy()
     for column in READING_COLUMNS:
         if column not in output.columns:
-            if column in ["lat", "lon", "level_m", "rise_rate_m_hr", "alert_m", "alarm_m", "critical_m"]:
+            if column in ["lat", "lon", "level_m", "level_30min_ago_m", "level_1hr_ago_m", "level_2hr_ago_m", "rise_rate_m_hr", "alert_m", "alarm_m", "critical_m"]:
                 output[column] = np.nan
             elif column in ["is_cached"]:
                 output[column] = False
@@ -159,7 +163,7 @@ def normalize_readings(raw: pd.DataFrame, provider_name: str = "") -> pd.DataFra
             else:
                 output[column] = ""
 
-    for column in ["lat", "lon", "level_m", "rise_rate_m_hr", "alert_m", "alarm_m", "critical_m"]:
+    for column in ["lat", "lon", "level_m", "level_30min_ago_m", "level_1hr_ago_m", "level_2hr_ago_m", "rise_rate_m_hr", "alert_m", "alarm_m", "critical_m"]:
         output[column] = pd.to_numeric(output[column], errors="coerce")
 
     output["timestamp"] = pd.to_datetime(output["timestamp"], errors="coerce", utc=True)

@@ -419,9 +419,97 @@ def _marker_style(group: pd.DataFrame, related: pd.DataFrame) -> tuple[str, str,
     return "#64748b", "No Data", "none"
 
 
+def _manual_report_color(row: pd.Series) -> str:
+    status = str(row.get("standard_status", "No Threshold") or "No Threshold")
+    is_numeric = str(row.get("report_kind", "")).startswith("Numerical")
+    if status == "No Threshold":
+        return "#7c3aed" if is_numeric else "#0891b2"
+    if status in WATER_COLORS:
+        return WATER_COLORS[status]
+    return "#7c3aed" if is_numeric else "#0891b2"
+
+
+def _manual_report_popup(row: pd.Series) -> str:
+    source_url = str(row.get("source_url", "") or "")
+    source_link = (
+        f"<a href='{html.escape(source_url)}' target='_blank'>Open source</a>"
+        if source_url.startswith("http") else "-"
+    )
+    reported_level = str(row.get("reported_level", "") or "").strip()
+    reported_unit = str(row.get("reported_unit", "") or "").strip()
+    original_level = f"{reported_level} {reported_unit}".strip() or "No numerical level reported"
+    level_m = pd.to_numeric(pd.Series([row.get("level_m")]), errors="coerce").iloc[0]
+    normalized = f"{float(level_m):.3f} m" if pd.notna(level_m) else "-"
+    return (
+        "<div style='min-width:390px;max-width:620px'>"
+        f"<h4 style='margin:0 0 6px'>{html.escape(str(row.get('river_or_site', '-')))}</h4>"
+        f"<b>Requested source:</b> {html.escape(str(row.get('requested_source', '-') or '-'))}<br>"
+        f"<b>Reporting source:</b> {html.escape(str(row.get('reporting_source', '-') or '-'))}<br>"
+        f"<b>Original reported level:</b> {html.escape(original_level)}<br>"
+        f"<b>Normalized level:</b> {html.escape(normalized)}<br>"
+        f"<b>Reported status:</b> {html.escape(str(row.get('reported_status', '-') or '-'))}<br>"
+        f"<b>Standard map class:</b> {html.escape(str(row.get('standard_status', '-') or '-'))}<br>"
+        f"<b>Observed:</b> {html.escape(format_time(row.get('observed_at')))}<br>"
+        f"<b>Province/LGU:</b> {html.escape(str(row.get('province', '-') or '-'))} / "
+        f"{html.escape(str(row.get('municipality', '-') or '-'))}<br>"
+        f"<b>Map position:</b> {html.escape(str(row.get('coordinate_basis', '-') or '-'))}<br>"
+        f"<b>Source:</b> {source_link}<br>"
+        f"<b>Notes:</b> {html.escape(str(row.get('notes', '') or ''))}"
+        "<hr><small>Manual/ChatGPT Work reports remain distinct from instrument feeds. "
+        "A representative anchor is not an exact gauge coordinate.</small></div>"
+    )
+
+
+def _add_manual_report_markers(
+    layer: folium.FeatureGroup,
+    manual_reports: pd.DataFrame | None,
+    bounds: list[list[float]],
+) -> None:
+    if manual_reports is None or manual_reports.empty:
+        return
+    mapped = manual_reports.dropna(subset=["lat", "lon"]).copy()
+    for _, row in mapped.iterrows():
+        lat = float(row["lat"])
+        lon = float(row["lon"])
+        bounds.append([lat, lon])
+        color = _manual_report_color(row)
+        reported_level = str(row.get("reported_level", "") or "").strip()
+        reported_unit = str(row.get("reported_unit", "") or "").strip()
+        status = str(row.get("reported_status", "") or row.get("standard_status", "") or "Report")
+        value_text = f"{reported_level} {reported_unit}".strip()
+        label = str(row.get("river_or_site", "Report") or "Report")
+        tooltip = f"{label}: {value_text or status}"
+        popup = _manual_report_popup(row)
+        folium.CircleMarker(
+            location=[lat, lon],
+            radius=8,
+            color="#111827",
+            weight=2,
+            fill=True,
+            fill_color=color,
+            fill_opacity=0.96,
+            popup=folium.Popup(popup, max_width=680),
+            tooltip=tooltip,
+        ).add_to(layer)
+        marker_html = (
+            "<div style='white-space:nowrap;transform:translate(8px,-16px);'>"
+            f"<span style='display:inline-block;background:{color};color:white;border:1px solid #111827;"
+            "border-radius:11px;padding:2px 6px;font-size:10px;font-weight:700;"
+            "box-shadow:0 1px 3px rgba(0,0,0,.35)'>"
+            f"{html.escape(label)} · {html.escape(value_text or status)}</span></div>"
+        )
+        folium.Marker(
+            location=[lat, lon],
+            icon=folium.DivIcon(html=marker_html, icon_size=(250, 28), icon_anchor=(0, 14)),
+            popup=folium.Popup(popup, max_width=680),
+            tooltip=tooltip,
+        ).add_to(layer)
+
+
 def build_target_river_map(
     stations: pd.DataFrame,
     bulletins: pd.DataFrame | None = None,
+    manual_reports: pd.DataFrame | None = None,
 ) -> tuple[folium.Map, pd.DataFrame]:
     tagged = tag_target_stations(stations)
     bulletins = bulletins if bulletins is not None else pd.DataFrame()
@@ -429,8 +517,10 @@ def build_target_river_map(
     summary_layer = folium.FeatureGroup(name="Requested rivers and official source summaries", show=True)
     exact_layer = folium.FeatureGroup(name="Verified numerical station coordinates", show=True)
     advisory_layer = folium.FeatureGroup(name="Official forecast/advisory markers", show=True)
+    manual_layer = folium.FeatureGroup(name="ChatGPT Work / manual official reports", show=True)
 
     bounds: list[list[float]] = []
+    _add_manual_report_markers(manual_layer, manual_reports, bounds)
     for key, config in TARGETS.items():
         label = config["label"]
         lat, lon = config["anchor"]
@@ -445,7 +535,7 @@ def build_target_river_map(
         else:
             reference = _reference_row(group)
             numeric_html = (
-                f"<b>Numerical stations:</b> {group['station_id'].nunique()}<br>"
+                f"<b>Numerical station/report rows:</b> {group['station_id'].nunique()}<br>"
                 f"<b>Most concerning observed status:</b> {html.escape(str(reference.get('water_status', 'No Data')))}<br>"
                 f"<b>Reference station:</b> {html.escape(str(reference.get('station_name', '-')))} — "
                 f"{float(reference.get('level_m')):.3f} m<br>"
@@ -455,6 +545,8 @@ def build_target_river_map(
             count = int(group["station_id"].nunique())
 
             exact = group.dropna(subset=["lat", "lon"]).copy()
+            if "data_kind" in exact.columns:
+                exact = exact[~exact["data_kind"].fillna("").astype(str).str.startswith("manual_work")]
             for _, row in exact.iterrows():
                 exact_lat = float(row["lat"])
                 exact_lon = float(row["lon"])
@@ -498,7 +590,7 @@ def build_target_river_map(
         )
 
         if mode == "numerical":
-            marker_text = f"{label} · {count} gauge(s)"
+            marker_text = f"{label} · {count} measurement(s)"
         elif mode == "advisory":
             marker_text = f"{label} · official {display_status}"
         else:
@@ -545,6 +637,7 @@ def build_target_river_map(
     summary_layer.add_to(map_object)
     exact_layer.add_to(map_object)
     advisory_layer.add_to(map_object)
+    manual_layer.add_to(map_object)
     if bounds:
         map_object.fit_bounds(bounds, padding=(20, 20))
     folium.LayerControl(collapsed=False).add_to(map_object)
